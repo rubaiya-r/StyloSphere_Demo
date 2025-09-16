@@ -1,0 +1,299 @@
+import { Component, signal, computed, effect } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+// Define data structures and services
+interface UserProfile {
+  name: string;
+  bodyShape: string;
+  faceShape: string;
+  skinTone: string;
+}
+
+interface FashionItem {
+  id: number;
+  name: string;
+  type: string;
+  imageUrl: string;
+  style: string;
+  color: string;
+  season: string;
+  tags: string[];
+}
+
+interface Outfit {
+  id: number;
+  name: string;
+  items: FashionItem[];
+  reasons: string[];
+}
+
+const mockFashionData: FashionItem[] = [
+  { id: 1, name: 'Floral Maxi Dress', type: 'dress', imageUrl: 'https://placehold.co/400x500/F2D2BD/452B20?text=Floral+Maxi+Dress', style: 'bohemian', color: 'pink', season: 'summer', tags: ['bohemian', 'dress', 'floral'] },
+  { id: 2, name: 'Denim Jacket', type: 'jacket', imageUrl: 'https://placehold.co/400x500/3B82F6/ffffff?text=Denim+Jacket', style: 'casual', color: 'blue', season: 'all', tags: ['casual', 'jacket', 'denim'] },
+  { id: 3, name: 'Striped T-Shirt', type: 'top', imageUrl: 'https://placehold.co/400x500/4B5563/F9FAFB?text=Striped+T-Shirt', style: 'casual', color: 'gray', season: 'all', tags: ['casual', 'top', 'stripe'] },
+  { id: 4, name: 'Black Jeans', type: 'bottom', imageUrl: 'https://placehold.co/400x500/1F2937/F9FAFB?text=Black+Jeans', style: 'casual', color: 'black', season: 'all', tags: ['casual', 'bottom', 'jeans'] },
+  { id: 5, name: 'Leather Skirt', type: 'bottom', imageUrl: 'https://placehold.co/400x500/553C9A/F3E9F8?text=Leather+Skirt', style: 'edgy', color: 'purple', season: 'fall', tags: ['edgy', 'bottom', 'leather'] },
+  { id: 6, name: 'Ankle Boots', type: 'shoes', imageUrl: 'https://placehold.co/400x500/964B00/ffffff?text=Ankle+Boots', style: 'edgy', color: 'brown', season: 'fall', tags: ['edgy', 'shoes', 'boots'] },
+  { id: 7, name: 'Boho Blouse', type: 'top', imageUrl: 'https://placehold.co/400x500/FDBA74/452B20?text=Boho+Blouse', style: 'bohemian', color: 'orange', season: 'summer', tags: ['bohemian', 'top', 'blouse'] },
+  { id: 8, name: 'Knit Sweater', type: 'top', imageUrl: 'https://placehold.co/400x500/D1D5DB/1F2937?text=Knit+Sweater', style: 'cozy', color: 'light gray', season: 'winter', tags: ['cozy', 'top', 'sweater'] },
+  { id: 9, name: 'Wool Coat', type: 'jacket', imageUrl: 'https://placehold.co/400x500/4B5563/F9FAFB?text=Wool+Coat', style: 'formal', color: 'dark gray', season: 'winter', tags: ['formal', 'jacket', 'coat'] },
+  { id: 10, name: 'A-Line Dress', type: 'dress', imageUrl: 'https://placehold.co/400x500/FBBF24/664422?text=A-Line+Dress', style: 'classic', color: 'yellow', season: 'spring', tags: ['classic', 'dress', 'a-line'] },
+  { id: 11, name: 'Pencil Skirt', type: 'bottom', imageUrl: 'https://placehold.co/400x500/EF4444/FEE2E2?text=Pencil+Skirt', style: 'formal', color: 'red', season: 'spring', tags: ['formal', 'bottom', 'skirt'] },
+  { id: 12, name: 'White Sneakers', type: 'shoes', imageUrl: 'https://placehold.co/400x500/F3F4F6/1F2937?text=White+Sneakers', style: 'casual', color: 'white', season: 'all', tags: ['casual', 'shoes', 'sneakers'] },
+];
+
+const mockOutfits: Outfit[] = [
+  { id: 1, name: 'Casual Weekend', items: [mockFashionData[2], mockFashionData[3], mockFashionData[1]], reasons: ['The classic combination is perfect for a casual outing.', 'The color palette is a timeless choice.'] },
+  { id: 2, name: 'Edgy Evening', items: [mockFashionData[4], mockFashionData[5]], reasons: ['The sleek silhouette of the skirt and boots works well.', 'The dark colors create a bold and confident look.'] },
+  { id: 3, name: 'Boho Summer', items: [mockFashionData[0], mockFashionData[6]], reasons: ['The breezy fabrics are ideal for warm weather.', 'A classic boho look for summer festivals.'] },
+];
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="min-h-screen bg-stone-100 dark:bg-zinc-900 text-gray-800 dark:text-gray-50 font-sans p-4 sm:p-8 flex flex-col items-center">
+      <div class="w-full max-w-4xl bg-stone-50 dark:bg-zinc-800 rounded-2xl shadow-xl overflow-hidden p-6 sm:p-10">
+
+        <!-- Header -->
+        <header class="mb-8 text-center">
+          <h1 class="text-4xl sm:text-5xl font-extrabold text-pink-600 dark:text-pink-400">StyloSphere</h1>
+          <p class="mt-2 text-lg sm:text-xl text-gray-600 dark:text-gray-300">Your Personal AI Stylist</p>
+        </header>
+
+        <!-- Onboarding Screen -->
+        @if (currentPage() === 'onboarding') {
+          <section class="onboarding-section">
+            <h2 class="text-3xl font-bold mb-6 text-center">Let's Create Your Style Profile</h2>
+            <div class="space-y-6">
+              <div class="p-6 bg-stone-100 dark:bg-zinc-700 rounded-xl shadow-inner">
+                <label for="name" class="block text-sm font-medium mb-2">What is your name?</label>
+                <input id="name" type="text" #nameInput (input)="updateProfile('name', nameInput.value)" placeholder="Enter your name" class="w-full p-3 rounded-lg border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-colors">
+              </div>
+
+              <div class="p-6 bg-stone-100 dark:bg-zinc-700 rounded-xl shadow-inner">
+                <h3 class="text-lg font-medium mb-4">Upload a Full-Body Photo</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">This helps us determine your body shape for tailored recommendations.</p>
+                <div class="w-full h-48 bg-gray-200 dark:bg-zinc-600 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400">
+                  <span class="text-center">Upload box for full-body photo</span>
+                </div>
+              </div>
+
+              <div class="p-6 bg-stone-100 dark:bg-zinc-700 rounded-xl shadow-inner">
+                <h3 class="text-lg font-medium mb-4">Select Your Skin Tone</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  @for (tone of skinTones; track tone) {
+                    <div class="flex flex-col items-center">
+                      <div class="w-16 h-16 rounded-full border-4 cursor-pointer transition-all duration-200"
+                           [ngClass]="{'border-pink-500 scale-110 shadow-lg': userProfile().skinTone === tone.label, 'border-transparent': userProfile().skinTone !== tone.label}"
+                           [style.backgroundColor]="tone.color" (click)="updateProfile('skinTone', tone.label)">
+                      </div>
+                      <span class="mt-2 text-sm">{{ tone.label }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="mt-8 text-center">
+              <button (click)="submitOnboarding()" class="px-8 py-4 bg-pink-600 text-white font-bold rounded-full shadow-lg hover:bg-pink-700 transition-all duration-300 transform hover:scale-105">
+                Start My Styling Journey
+              </button>
+            </div>
+          </section>
+        }
+
+        <!-- Main Dashboard -->
+        @if (currentPage() === 'dashboard') {
+          <section class="dashboard-section">
+            <!-- User Profile and Stats -->
+            <div class="flex flex-col sm:flex-row items-center justify-between mb-8 p-6 bg-stone-100 dark:bg-zinc-700 rounded-2xl shadow-inner">
+              <div class="flex items-center space-x-4">
+                <div class="w-16 h-16 rounded-full bg-stone-300 dark:bg-zinc-600 flex items-center justify-center text-xl font-bold text-gray-600 dark:text-gray-300">
+                  {{ userInitial() }}
+                </div>
+                <div>
+                  <h2 class="text-xl sm:text-2xl font-bold">Welcome back, {{ userProfile().name }}!</h2>
+                  <p class="text-gray-600 dark:text-gray-300 text-sm sm:text-base">Your Personal Style Profile</p>
+                </div>
+              </div>
+              <div class="mt-4 sm:mt-0 text-center sm:text-right">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Body Shape: <span class="font-bold text-pink-600 dark:text-pink-400">{{ userProfile().bodyShape }}</span></p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Skin Tone: <span class="font-bold text-pink-600 dark:text-pink-400">{{ userProfile().skinTone }}</span></p>
+              </div>
+            </div>
+
+            <!-- Today's Style Section -->
+            <div class="mb-10">
+              <h3 class="text-2xl font-bold mb-4">Today's Style Suggestion</h3>
+              <div class="relative w-full h-80 rounded-2xl overflow-hidden shadow-xl group">
+                <img [src]="currentOutfit().items[0].imageUrl" [alt]="currentOutfit().items[0].name" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                <div class="absolute inset-0 bg-black bg-opacity-40 flex flex-col justify-end p-6 text-white transition-opacity duration-300 group-hover:bg-opacity-60">
+                  <h4 class="text-xl sm:text-2xl font-bold mb-1">{{ currentOutfit().name }}</h4>
+                  <ul class="text-sm sm:text-base opacity-90">
+                    @for (reason of currentOutfit().reasons; track reason) {
+                      <li>• {{ reason }}</li>
+                    }
+                  </ul>
+                </div>
+              </div>
+              <div class="mt-4 text-center">
+                <button (click)="viewMixAndMatch()" class="px-6 py-3 bg-pink-600 text-white font-semibold rounded-full shadow-lg hover:bg-pink-700 transition-colors duration-300">
+                  View Outfit
+                </button>
+              </div>
+            </div>
+
+            <!-- Trending Now Section -->
+            <div class="mb-10">
+              <h3 class="text-2xl font-bold mb-4">Trending Now</h3>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                @for (trend of trendingTrends(); track trend) {
+                  <div class="relative aspect-[4/5] overflow-hidden rounded-xl shadow-lg group cursor-pointer" (click)="viewTrendingItem(trend.item.id)">
+                    <img [src]="trend.item.imageUrl" [alt]="trend.item.name" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black to-transparent p-4 text-white">
+                      <p class="font-bold text-sm sm:text-base">{{ trend.name }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- View Outfit Section -->
+            @if (currentPage() === 'outfit') {
+              <div class="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div class="bg-stone-50 dark:bg-zinc-800 p-6 rounded-2xl shadow-2xl max-w-2xl w-full relative transform transition-all duration-300 scale-100">
+                  <button (click)="goBack()" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  </button>
+                  <h3 class="text-2xl font-bold mb-4 text-center">{{ selectedOutfit()?.name }}</h3>
+                  <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    @for (item of selectedOutfit()?.items; track item.id) {
+                      <div class="flex flex-col items-center">
+                        <img [src]="item.imageUrl" [alt]="item.name" class="w-full h-40 object-cover rounded-xl shadow-md">
+                        <p class="mt-2 text-sm text-center font-medium">{{ item.name }}</p>
+                      </div>
+                    }
+                  </div>
+                  <div class="mt-6">
+                    <h4 class="text-lg font-bold mb-2">Why This Works For You:</h4>
+                    <ul class="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                      @for (reason of selectedOutfit()?.reasons; track reason) {
+                        <li>{{ reason }}</li>
+                      }
+                    </ul>
+                  </div>
+                  <div class="mt-6 text-center">
+                    <button (click)="goBack()" class="px-6 py-3 bg-pink-600 text-white font-semibold rounded-full shadow-lg hover:bg-pink-700 transition-colors">
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+
+          </section>
+        }
+
+      </div>
+    </div>
+  `,
+  styles: [`
+    @import 'tailwindcss/base';
+    @import 'tailwindcss/components';
+    @import 'tailwindcss/utilities';
+
+    :host {
+      display: block;
+      min-height: 100vh;
+      background-color: #f5f5f4;
+    }
+
+    .dark :host {
+      background-color: #1a1a2e;
+    }
+    
+    .text-4xl, .text-5xl {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .shadow-xl {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+  `],
+})
+export class App {
+  // Signals for application state
+  currentPage = signal<'onboarding' | 'dashboard' | 'outfit'>('onboarding');
+  userProfile = signal<UserProfile>({
+    name: '',
+    bodyShape: 'Pear',
+    faceShape: 'Oval',
+    skinTone: 'Fair',
+  });
+  selectedOutfit = signal<Outfit | null>(null);
+
+  // Mock data for UI
+  skinTones = [
+    { label: 'Fair', color: '#F2D2BD' },
+    { label: 'Light', color: '#D9B4A0' },
+    { label: 'Medium', color: '#A17D65' },
+    { label: 'Dark', color: '#6A4D3B' },
+  ];
+  
+  trendingTrends = computed(() => {
+    // In a real app, this would come from the NLP model
+    return [
+      { name: 'Bohemian Summer', item: mockFashionData[0] },
+      { name: 'Streetwear Casual', item: mockFashionData[2] },
+      { name: 'Edgy Style', item: mockFashionData[4] },
+    ];
+  });
+  
+  currentOutfit = computed(() => {
+    // In a real app, this would be a recommendation from the AI
+    return mockOutfits[0];
+  });
+
+  userInitial = computed(() => {
+    return this.userProfile().name.charAt(0).toUpperCase() || '?';
+  });
+
+  // User input handlers
+  updateProfile(field: keyof UserProfile, value: string) {
+    this.userProfile.update(profile => ({ ...profile, [field]: value }));
+  }
+
+  submitOnboarding() {
+    if (this.userProfile().name) {
+      this.currentPage.set('dashboard');
+    } else {
+      console.error('Please enter your name to continue.');
+    }
+  }
+
+  viewMixAndMatch() {
+    this.selectedOutfit.set(this.currentOutfit());
+    this.currentPage.set('outfit');
+  }
+
+  viewTrendingItem(itemId: number) {
+    const item = mockFashionData.find(i => i.id === itemId);
+    if (item) {
+      // Create a mock outfit for the selected trending item
+      const outfit: Outfit = {
+        id: Math.random(),
+        name: `Style with ${item.name}`,
+        items: [item, mockFashionData[1], mockFashionData[3]],
+        reasons: [`This is a popular trend right now.`, `This outfit complements the ${item.style} style.`],
+      };
+      this.selectedOutfit.set(outfit);
+      this.currentPage.set('outfit');
+    }
+  }
+
+  goBack() {
+    this.currentPage.set('dashboard');
+    this.selectedOutfit.set(null);
+  }
+}
